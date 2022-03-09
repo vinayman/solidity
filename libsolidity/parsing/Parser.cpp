@@ -975,7 +975,6 @@ ASTPointer<UsingForDirective> Parser::parseUsingDirective()
 		{
 			advance();
 			functions.emplace_back(parseIdentifierPath());
-			optional<Token> operator_;
 			if (m_scanner->currentToken() == Token::As)
 			{
 				advance();

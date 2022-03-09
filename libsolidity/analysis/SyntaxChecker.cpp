@@ -410,7 +410,6 @@ bool SyntaxChecker::visit(UsingForDirective const& _usingFor)
 			_usingFor.functionsAndOperators().size() == 1 &&
 			!std::get<1>(_usingFor.functionsAndOperators().front())
 		);
-	// TODO check validity of operator tokens
 
 	if (!m_currentContractKind && !_usingFor.typeName())
 		m_errorReporter.syntaxError(

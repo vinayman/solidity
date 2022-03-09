@@ -3718,45 +3718,69 @@ void TypeChecker::endVisit(UsingForDirective const& _usingFor)
 			);
 		else if (operator_)
 		{
-			if (TokenTraits::isBinaryOp(*operator_))
+			if (!_usingFor.typeName()->annotation().type->typeDefinition())
 			{
-				if (
+				m_errorReporter.typeError(
+					5332_error,
+					path->location(),
+					"Operators can only be implemented for user-defined types and not for contracts."
+				);
+				continue;
+			}
+			bool isUnaryNegation = (
+				operator_ == Token::Sub &&
+				functionType->parameterTypesIncludingSelf().size() == 1
+			);
+			if (
+				(
+					(TokenTraits::isBinaryOp(*operator_) && !isUnaryNegation) ||
+					TokenTraits::isCompareOp(*operator_)
+				) &&
+				(
 					functionType->parameterTypesIncludingSelf().size() != 2 ||
 					*functionType->parameterTypesIncludingSelf().at(0) !=
 					*functionType->parameterTypesIncludingSelf().at(1)
 				)
-					m_errorReporter.typeError(
-						1884_error,
-						path->location(),
-						"The function \"" + joinHumanReadable(path->path(), ".") + "\" "+
-						"needs to have two parameters of equal type to be used for the operator " +
-						TokenTraits::friendlyName(*operator_) +
-						"."
-					);
-				else
-				{
-					Type const* expectedType =
-						TokenTraits::isCompareOp(*operator_) ?
-						dynamic_cast<Type const*>(TypeProvider::boolean()) :
-						functionType->parameterTypesIncludingSelf().at(0);
+			)
+				m_errorReporter.typeError(
+					1884_error,
+					path->location(),
+					"The function \"" + joinHumanReadable(path->path(), ".") + "\" "+
+					"needs to have two parameters of equal type to be used for the operator " +
+					TokenTraits::friendlyName(*operator_) +
+					"."
+				);
+			if (
+				(isUnaryNegation || TokenTraits::isUnaryOp(*operator_)) &&
+				functionType->parameterTypesIncludingSelf().size() != 1
+			)
+				m_errorReporter.typeError(
+					8112_error,
+					path->location(),
+					"The function \"" + joinHumanReadable(path->path(), ".") + "\" "+
+					"needs to have exactly one parameter to be used for the operator " +
+					TokenTraits::friendlyName(*operator_) +
+					"."
+				);
+			Type const* expectedType =
+				TokenTraits::isCompareOp(*operator_) ?
+				dynamic_cast<Type const*>(TypeProvider::boolean()) :
+				functionType->parameterTypesIncludingSelf().at(0);
 
-					if (
-						functionType->returnParameterTypes().size() != 1 ||
-						*functionType->returnParameterTypes().front() != *expectedType
-					)
-						m_errorReporter.typeError(
-							7743_error,
-							path->location(),
-							"The function \"" + joinHumanReadable(path->path(), ".") + "\" "+
-							"needs to return exactly one value of type " +
-							expectedType->toString(true) +
-							" to be used for the operator " +
-							TokenTraits::friendlyName(*operator_) +
-							"."
-						);
-				}
-			}
-			// TODO unary operator
+			if (
+				functionType->returnParameterTypes().size() != 1 ||
+				*functionType->returnParameterTypes().front() != *expectedType
+			)
+				m_errorReporter.typeError(
+					7743_error,
+					path->location(),
+					"The function \"" + joinHumanReadable(path->path(), ".") + "\" "+
+					"needs to return exactly one value of type " +
+					expectedType->toString(true) +
+					" to be used for the operator " +
+					TokenTraits::friendlyName(*operator_) +
+					"."
+				);
 		}
 	}
 }
