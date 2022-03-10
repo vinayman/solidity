@@ -23,6 +23,7 @@
 
 #include <libyul/optimiser/SyntacticalEquality.h>
 #include <libyul/optimiser/CallGraphGenerator.h>
+#include <libyul/ControlFlowSideEffectsCollector.h>
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/SideEffects.h>
 #include <libyul/Exceptions.h>
@@ -39,16 +40,22 @@ void CommonSubexpressionEliminator::run(OptimiserStepContext& _context, Block& _
 {
 	CommonSubexpressionEliminator cse{
 		_context.dialect,
-		SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast))
+		SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast)),
+		ControlFlowSideEffectsCollector{_context.dialect, _ast}.functionSideEffectsNamed()
 	};
 	cse(_ast);
 }
 
 CommonSubexpressionEliminator::CommonSubexpressionEliminator(
 	Dialect const& _dialect,
-	map<YulString, SideEffects> _functionSideEffects
+	map<YulString, SideEffects> _functionSideEffects,
+	map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
 ):
-	DataFlowAnalyzer(_dialect, std::move(_functionSideEffects))
+	DataFlowAnalyzer(
+		_dialect,
+		std::move(_functionSideEffects),
+		std::move(_controlFlowSideEffects)
+	)
 {
 }
 

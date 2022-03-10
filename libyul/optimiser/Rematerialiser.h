@@ -23,6 +23,8 @@
 
 #include <libyul/optimiser/DataFlowAnalyzer.h>
 #include <libyul/optimiser/OptimiserStep.h>
+#include <libyul/optimiser/Semantics.h>
+#include <libyul/ControlFlowSideEffectsCollector.h>
 
 namespace solidity::yul
 {
@@ -100,14 +102,24 @@ public:
 	static void run(
 		OptimiserStepContext& _context,
 		Block& _ast
-	) { LiteralRematerialiser{_context.dialect}(_ast); }
+	) { LiteralRematerialiser{
+			_context.dialect,
+					SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast)),
+					ControlFlowSideEffectsCollector{_context.dialect, _ast}.functionSideEffectsNamed()
+		}(_ast); }
 
 	using ASTModifier::visit;
 	void visit(Expression& _e) override;
 
 private:
-	LiteralRematerialiser(Dialect const& _dialect):
-		DataFlowAnalyzer(_dialect)
+	LiteralRematerialiser(Dialect const& _dialect,
+						  std::map<YulString, SideEffects> _functionSideEffects,
+						  std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
+						  ):
+		DataFlowAnalyzer(_dialect,
+						 std::move(_functionSideEffects),
+						 std::move(_controlFlowSideEffects)
+						 )
 	{}
 };
 

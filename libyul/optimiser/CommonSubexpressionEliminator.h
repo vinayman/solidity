@@ -51,7 +51,8 @@ public:
 private:
 	CommonSubexpressionEliminator(
 		Dialect const& _dialect,
-		std::map<YulString, SideEffects> _functionSideEffects
+		std::map<YulString, SideEffects> _functionSideEffects,
+		std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
 	);
 
 protected:
