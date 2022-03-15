@@ -54,16 +54,9 @@ namespace
 class RematCandidateSelector: public DataFlowAnalyzer
 {
 public:
-	explicit RematCandidateSelector(
-			Dialect const& _dialect/*,
-			std::map<YulString, SideEffects> _functionSideEffects,
-			std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-			*/): DataFlowAnalyzer
-			   (
-				   _dialect/*,
-				   std::move(_functionSideEffects),
-				   std::move(_controlFlowSideEffects)*/
-				   ) {}
+	RematCandidateSelector(Dialect const& _dialect, Block const& _ast):
+		DataFlowAnalyzer(_dialect, _ast)
+	{}
 
 	/// @returns a map from rematerialisation costs to a vector of variables to rematerialise
 	/// and variables that occur in their expression.
@@ -168,29 +161,27 @@ set<YulString> chooseVarsToEliminate(
 template <typename ASTNode>
 void eliminateVariables(
 	Dialect const& _dialect,
+	Block const& _ast,
 	ASTNode& _node,
 	size_t _numVariables,
 	bool _allowMSizeOptimization
 )
 {
-	RematCandidateSelector selector{_dialect};
+	RematCandidateSelector selector{_dialect, _ast};
 	selector(_node);
-	Rematerialiser::run(_dialect, _node, chooseVarsToEliminate(selector.candidates(), _numVariables));
+	Rematerialiser::run(_dialect, _ast, _node, chooseVarsToEliminate(selector.candidates(), _numVariables));
 	UnusedPruner::runUntilStabilised(_dialect, _node, _allowMSizeOptimization);
 }
 
 void eliminateVariables(
 	Dialect const& _dialect,
+	Block const& _ast,
 	Block& _block,
 	vector<StackLayoutGenerator::StackTooDeep> const& _unreachables,
 	bool _allowMSizeOptimization
 )
 {
-	RematCandidateSelector selector{
-		_dialect/*,
-				SideEffectsPropagator::sideEffects(_dialect, CallGraphGenerator::callGraph(_ast)),
-				ControlFlowSideEffectsCollector{_dialect, _ast}.functionSideEffectsNamed()*/
-	};
+	RematCandidateSelector selector{_dialect, _ast};
 	selector(_block);
 	std::map<YulString, size_t> candidates;
 	for (auto [cost, candidatesWithCost]: selector.candidates())
@@ -223,7 +214,7 @@ void eliminateVariables(
 				break;
 		}
 	}
-	Rematerialiser::run(_dialect, _block, std::move(varsToEliminate), true);
+	Rematerialiser::run(_dialect, _ast, _block, std::move(varsToEliminate), true);
 	UnusedPruner::runUntilStabilised(_dialect, _block, _allowMSizeOptimization);
 }
 
@@ -253,11 +244,13 @@ bool StackCompressor::run(
 		yul::AsmAnalysisInfo analysisInfo = yul::AsmAnalyzer::analyzeStrictAssertCorrect(_dialect, _object);
 		unique_ptr<CFG> cfg = ControlFlowGraphBuilder::build(analysisInfo, _dialect, *_object.code);
 		Block& mainBlock = std::get<Block>(_object.code->statements.at(0));
+		// TOOD refactor so that eliminateVariables needs to be called only once.
+		// This way we avoid re-computing the side effects again and again.
 		if (
 			auto stackTooDeepErrors = StackLayoutGenerator::reportStackTooDeep(*cfg, YulString{});
 			!stackTooDeepErrors.empty()
 		)
-			eliminateVariables(_dialect, mainBlock, stackTooDeepErrors, allowMSizeOptimzation);
+			eliminateVariables(_dialect, *_object.code, mainBlock, stackTooDeepErrors, allowMSizeOptimzation);
 		for (size_t i = 1; i < _object.code->statements.size(); ++i)
 		{
 			auto& fun = std::get<FunctionDefinition>(_object.code->statements[i]);
@@ -265,7 +258,7 @@ bool StackCompressor::run(
 				auto stackTooDeepErrors = StackLayoutGenerator::reportStackTooDeep(*cfg, fun.name);
 				!stackTooDeepErrors.empty()
 			)
-				eliminateVariables(_dialect, fun.body, stackTooDeepErrors, allowMSizeOptimzation);
+				eliminateVariables(_dialect, *_object.code, fun.body, stackTooDeepErrors, allowMSizeOptimzation);
 		}
 	}
 	else
@@ -280,12 +273,15 @@ bool StackCompressor::run(
 				yulAssert(stackSurplus.at({}) > 0, "Invalid surplus value.");
 				eliminateVariables(
 					_dialect,
+					*_object.code,
 					std::get<Block>(_object.code->statements.at(0)),
 					static_cast<size_t>(stackSurplus.at({})),
 					allowMSizeOptimzation
 				);
 			}
 
+			// TOOD refactor so that eliminateVariables needs to be called only once.
+			// This way we avoid re-computing the side effects again and again.
 			for (size_t i = 1; i < _object.code->statements.size(); ++i)
 			{
 				auto& fun = std::get<FunctionDefinition>(_object.code->statements[i]);
@@ -295,6 +291,7 @@ bool StackCompressor::run(
 				yulAssert(stackSurplus.at(fun.name) > 0, "Invalid surplus value.");
 				eliminateVariables(
 					_dialect,
+					*_object.code,
 					fun,
 					static_cast<size_t>(stackSurplus.at(fun.name)),
 					allowMSizeOptimzation

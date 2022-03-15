@@ -33,11 +33,7 @@ using namespace solidity::yul;
 
 void ExpressionSimplifier::run(OptimiserStepContext& _context, Block& _ast)
 {
-	ExpressionSimplifier{
-		_context.dialect,
-		SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast)),
-		ControlFlowSideEffectsCollector{_context.dialect, _ast}.functionSideEffectsNamed()
-	}(_ast);
+	ExpressionSimplifier{_context.dialect, _ast}(_ast);
 }
 
 void ExpressionSimplifier::visit(Expression& _expression)

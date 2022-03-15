@@ -82,11 +82,10 @@ struct AssignedValue
 class DataFlowAnalyzer: public ASTModifier
 {
 public:
-	explicit DataFlowAnalyzer(
-		Dialect const& _dialect,
-		std::map<YulString, SideEffects> _functionSideEffects = {},
-		std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects = {}
-	);
+	/// Construct the data flow analyzer. The passed block should be the full AST
+	/// because side effects of user defined functions are computed from it.
+	/// Otherwise, worst-case side effects are assumed.
+	DataFlowAnalyzer(Dialect const& _dialect, Block const& _ast);
 
 	using ASTModifier::operator();
 	void operator()(ExpressionStatement& _statement) override;

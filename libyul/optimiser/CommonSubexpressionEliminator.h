@@ -49,11 +49,7 @@ public:
 	void operator()(FunctionDefinition&) override;
 
 private:
-	CommonSubexpressionEliminator(
-		Dialect const& _dialect,
-		std::map<YulString, SideEffects> _functionSideEffects,
-		std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-	);
+	CommonSubexpressionEliminator(Dialect const& _dialect, Block const& _ast);
 
 protected:
 	using ASTModifier::visit;

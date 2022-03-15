@@ -25,6 +25,7 @@
 #include <libyul/optimiser/NameCollector.h>
 #include <libyul/optimiser/Semantics.h>
 #include <libyul/optimiser/KnowledgeBase.h>
+#include <libyul/ControlFlowSideEffectsCollector.h>
 #include <libyul/AST.h>
 #include <libyul/Dialect.h>
 #include <libyul/Exceptions.h>
@@ -42,16 +43,13 @@ using namespace solidity;
 using namespace solidity::util;
 using namespace solidity::yul;
 
-DataFlowAnalyzer::DataFlowAnalyzer(
-	Dialect const& _dialect,
-	map<YulString, SideEffects> _functionSideEffects,
-	map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-):
+DataFlowAnalyzer::DataFlowAnalyzer(Dialect const& _dialect, Block const& _ast):
 	m_dialect(_dialect),
-	m_functionSideEffects(std::move(_functionSideEffects)),
-	m_controlFlowSideEffects(std::move(_controlFlowSideEffects)),
 	m_knowledgeBase(_dialect, [this](YulString _var) { return variableValue(_var); })
 {
+	m_functionSideEffects = SideEffectsPropagator::sideEffects(_dialect, CallGraphGenerator::callGraph(_ast));
+	m_controlFlowSideEffects = ControlFlowSideEffectsCollector{_dialect, _ast}.functionSideEffectsNamed();
+
 	if (auto const* builtin = _dialect.memoryStoreFunction(YulString{}))
 		m_storeFunctionName[static_cast<unsigned>(StoreLoadLocation::Memory)] = builtin->name;
 	if (auto const* builtin = _dialect.memoryLoadFunction(YulString{}))

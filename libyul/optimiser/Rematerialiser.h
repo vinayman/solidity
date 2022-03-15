@@ -46,17 +46,20 @@ public:
 	static constexpr char const* name{"Rematerialiser"};
 	static void run(
 		OptimiserStepContext& _context,
-		Block& _ast
-	) { run(_context.dialect, _ast); }
+		Block const& _ast,
+		Block& _block
+	) { run(_context.dialect, _ast, _block); }
 
 	static void run(
 		Dialect const& _dialect,
-		Block& _ast,
+		Block const& _ast,
+		Block& _block,
 		std::set<YulString> _varsToAlwaysRematerialize = {},
 		bool _onlySelectedVariables = false
 	);
 	static void run(
 		Dialect const& _dialect,
+		Block const& _ast,
 		FunctionDefinition& _function,
 		std::set<YulString> _varsToAlwaysRematerialize = {},
 		bool _onlySelectedVariables = false
@@ -65,12 +68,14 @@ public:
 protected:
 	Rematerialiser(
 		Dialect const& _dialect,
-		Block& _ast,
+		Block const& _ast,
+		Block const& _block,
 		std::set<YulString> _varsToAlwaysRematerialize = {},
 		bool _onlySelectedVariables = false
 	);
 	Rematerialiser(
 		Dialect const& _dialect,
+		Block const& _ast,
 		FunctionDefinition& _function,
 		std::set<YulString> _varsToAlwaysRematerialize = {},
 		bool _onlySelectedVariables = false
@@ -99,27 +104,14 @@ class LiteralRematerialiser: public DataFlowAnalyzer
 {
 public:
 	static constexpr char const* name{"LiteralRematerialiser"};
-	static void run(
-		OptimiserStepContext& _context,
-		Block& _ast
-	) { LiteralRematerialiser{
-			_context.dialect,
-					SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast)),
-					ControlFlowSideEffectsCollector{_context.dialect, _ast}.functionSideEffectsNamed()
-		}(_ast); }
+	static void run(OptimiserStepContext& _context, Block& _ast);
 
 	using ASTModifier::visit;
 	void visit(Expression& _e) override;
 
 private:
-	LiteralRematerialiser(Dialect const& _dialect,
-						  std::map<YulString, SideEffects> _functionSideEffects,
-						  std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-						  ):
-		DataFlowAnalyzer(_dialect,
-						 std::move(_functionSideEffects),
-						 std::move(_controlFlowSideEffects)
-						 )
+	LiteralRematerialiser(Dialect const& _dialect, Block const& _ast):
+		DataFlowAnalyzer(_dialect, _ast)
 	{}
 };
 

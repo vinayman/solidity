@@ -32,29 +32,31 @@ using namespace std;
 using namespace solidity;
 using namespace solidity::yul;
 
-void Rematerialiser::run(Dialect const& _dialect, Block& _ast, set<YulString> _varsToAlwaysRematerialize, bool _onlySelectedVariables)
+void Rematerialiser::run(Dialect const& _dialect, Block const& _ast, Block& _block, set<YulString> _varsToAlwaysRematerialize, bool _onlySelectedVariables)
 {
-	Rematerialiser{_dialect, _ast, std::move(_varsToAlwaysRematerialize), _onlySelectedVariables}(_ast);
+	Rematerialiser{_dialect, _ast, _block, std::move(_varsToAlwaysRematerialize), _onlySelectedVariables}(_block);
 }
 
 void Rematerialiser::run(
 	Dialect const& _dialect,
+	Block const& _ast,
 	FunctionDefinition& _function,
 	set<YulString> _varsToAlwaysRematerialize,
 	bool _onlySelectedVariables
 )
 {
-	Rematerialiser{_dialect, _function, std::move(_varsToAlwaysRematerialize), _onlySelectedVariables}(_function);
+	Rematerialiser{_dialect, _ast, _function, std::move(_varsToAlwaysRematerialize), _onlySelectedVariables}(_function);
 }
 
 Rematerialiser::Rematerialiser(
 	Dialect const& _dialect,
-	Block& _ast,
+	Block const& _ast,
+	Block const& _block,
 	set<YulString> _varsToAlwaysRematerialize,
 	bool _onlySelectedVariables
 ):
-	DataFlowAnalyzer(_dialect),
-	m_referenceCounts(ReferencesCounter::countReferences(_ast)),
+	DataFlowAnalyzer(_dialect, _ast),
+	m_referenceCounts(ReferencesCounter::countReferences(_block)),
 	m_varsToAlwaysRematerialize(std::move(_varsToAlwaysRematerialize)),
 	m_onlySelectedVariables(_onlySelectedVariables)
 {
@@ -62,11 +64,12 @@ Rematerialiser::Rematerialiser(
 
 Rematerialiser::Rematerialiser(
 	Dialect const& _dialect,
+	Block const& _ast,
 	FunctionDefinition& _function,
 	set<YulString> _varsToAlwaysRematerialize,
 	bool _onlySelectedVariables
 ):
-	DataFlowAnalyzer(_dialect),
+	DataFlowAnalyzer(_dialect, _ast),
 	m_referenceCounts(ReferencesCounter::countReferences(_function)),
 	m_varsToAlwaysRematerialize(std::move(_varsToAlwaysRematerialize)),
 	m_onlySelectedVariables(_onlySelectedVariables)
@@ -108,6 +111,11 @@ void Rematerialiser::visit(Expression& _e)
 		}
 	}
 	DataFlowAnalyzer::visit(_e);
+}
+
+void LiteralRematerialiser::run(OptimiserStepContext& _context, Block& _ast)
+{
+	LiteralRematerialiser{_context.dialect, _ast}(_ast);
 }
 
 void LiteralRematerialiser::visit(Expression& _e)

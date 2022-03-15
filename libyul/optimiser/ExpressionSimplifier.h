@@ -51,15 +51,9 @@ public:
 	void visit(Expression& _expression) override;
 
 private:
-	explicit ExpressionSimplifier(
-		Dialect const& _dialect,
-		std::map<YulString, SideEffects> _functionSideEffects,
-		std::map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-	): DataFlowAnalyzer(
-		_dialect,
-		std::move(_functionSideEffects),
-		std::move(_controlFlowSideEffects)
-	) {}
+	ExpressionSimplifier(Dialect const& _dialect, Block const& _ast):
+		DataFlowAnalyzer(_dialect, _ast)
+	{}
 };
 
 }

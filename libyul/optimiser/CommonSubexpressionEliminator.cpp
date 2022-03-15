@@ -38,24 +38,13 @@ using namespace solidity::util;
 
 void CommonSubexpressionEliminator::run(OptimiserStepContext& _context, Block& _ast)
 {
-	CommonSubexpressionEliminator cse{
-		_context.dialect,
-		SideEffectsPropagator::sideEffects(_context.dialect, CallGraphGenerator::callGraph(_ast)),
-		ControlFlowSideEffectsCollector{_context.dialect, _ast}.functionSideEffectsNamed()
-	};
-	cse(_ast);
+	CommonSubexpressionEliminator{_context.dialect, _ast}(_ast);
 }
 
 CommonSubexpressionEliminator::CommonSubexpressionEliminator(
 	Dialect const& _dialect,
-	map<YulString, SideEffects> _functionSideEffects,
-	map<YulString, ControlFlowSideEffects> _controlFlowSideEffects
-):
-	DataFlowAnalyzer(
-		_dialect,
-		std::move(_functionSideEffects),
-		std::move(_controlFlowSideEffects)
-	)
+	Block const& _ast
+): DataFlowAnalyzer(_dialect, _ast)
 {
 }
 
